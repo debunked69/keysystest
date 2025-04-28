@@ -307,23 +307,37 @@ local function main()
         return false
     end
     
-    -- Validate the key
-    local isValid, statusOrCode = validateKey(keyContent)
+    -- Initialize Luarmor API
+    local api = initLuarmorAPI()
+    if not api then
+        createNotification("API Error", "Failed to initialize Luarmor API", 5, Color3.fromRGB(255, 85, 85), notifGui)
+        return false
+    end
+    
+    -- Validate the key with Luarmor
+    local success, status = pcall(function()
+        return api.check_key(keyContent)
+    end)
+    
+    -- If the API call failed, show the key system UI
+    if not success then
+        createNotification("API Error", "Failed to check key with Luarmor", 5, Color3.fromRGB(255, 85, 85), notifGui)
+        pcall(function() delfile("Key.txt") end)
+        return false
+    end
     
     -- If the key is not valid, delete it and show the key system UI
-    if not isValid then
+    if status.code ~= "KEY_VALID" then
         pcall(function() delfile("Key.txt") end)
         
         local statusMessage = "Invalid key"
-        if statusOrCode == "KEY_NOT_FOUND" then
-            statusMessage = "No key found"
-        elseif statusOrCode == "KEY_EXPIRED" then
+        if status.code == "KEY_EXPIRED" then
             statusMessage = "Key expired"
-        elseif statusOrCode == "KEY_HWID_LOCKED" then
+        elseif status.code == "KEY_HWID_LOCKED" then
             statusMessage = "Key HWID locked"
-        elseif statusOrCode == "KEY_BANNED" then
+        elseif status.code == "KEY_BANNED" then
             statusMessage = "Key banned"
-        elseif statusOrCode == "KEY_INCORRECT" or statusOrCode == "KEY_INVALID" then
+        elseif status.code == "KEY_INCORRECT" or status.code == "KEY_INVALID" then
             statusMessage = "Invalid key - key does not exist"
         end
         
@@ -331,7 +345,7 @@ local function main()
         return false
     end
     
-    -- Key is valid, set up queue_on_teleport and execute the script
+    -- Key is valid, set up queue_on_teleport
     local saveSuccess, saveError = pcall(function()
         writefile("Key.txt", keyContent)
     end)
@@ -349,7 +363,7 @@ local function main()
         else
             -- Only set up queue_on_teleport if the key was saved successfully
             queue_on_teleport([[
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/debunked69/solixloader/refs/heads/main/solix%20v2%20new%20loader.lua"))()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/debunked69/keysystest/refs/heads/main/keyssys.lua"))()
             ]])
             
             createNotification("Info", "Key saved successfully. Ready for teleport.", 3, Color3.fromRGB(85, 255, 127), notifGui)
@@ -863,7 +877,9 @@ CheckButton.MouseButton1Click:Connect(function()
             else
                 -- Only set up queue_on_teleport if the key was saved successfully
                 queue_on_teleport([[
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/debunked69/solixloader/refs/heads/main/solix%20v2%20new%20loader.lua"))()
+                    -- Always load the main loader script which will handle key validation
+                    -- and show the key system if needed
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/debunked69/keysystest/refs/heads/main/keyssys.lua"))()
                 ]])
                 
                 createNotification("Info", "Key saved successfully. Ready for teleport.", 3, Color3.fromRGB(85, 255, 127), ScreenGui)
@@ -979,4 +995,3 @@ end
 createNotification("SolixHub", "Welcome to SolixHub! Please enter your key to continue.", 5, Color3.fromRGB(255, 188, 254), ScreenGui)
 
 MainFrame.Visible = true
-
